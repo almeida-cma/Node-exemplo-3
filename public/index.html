@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Agenda</title>
+    <style>
+        /* Estilos básicos */
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+            padding: 8px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        #editModal {
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        #editModal div {
+            background-color: #fff; 
+            padding: 20px; 
+            max-width: 500px; 
+            margin: 50px auto; 
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <h2>Agenda</h2>
+    
+    <form id="agenda-form">
+        <label for="dt_agenda">Data:</label>
+        <input type="date" id="dt_agenda" required>
+
+        <label for="hora_agenda">Hora:</label>
+        <input type="time" id="hora_agenda" required>
+
+        <label for="descricao_agenda">Descrição:</label>
+        <textarea id="descricao_agenda" required></textarea>
+
+        <button type="submit">Adicionar</button>
+    </form>
+
+    <h3>Itens da Agenda</h3>
+    <table id="agenda-list">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Hora</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Os itens da agenda serão inseridos aqui pelo JavaScript -->
+        </tbody>
+    </table>
+
+    <!-- Modal para Edição -->
+    <div id="editModal">
+        <div>
+            <h3>Editar Item</h3>
+            
+            <label for="edit-dt_agenda">Data:</label>
+            <input type="date" id="edit-dt_agenda">
+
+            <label for="edit-hora_agenda">Hora:</label>
+            <input type="time" id="edit-hora_agenda">
+
+            <label for="edit-descricao_agenda">Descrição:</label>
+            <textarea id="edit-descricao_agenda"></textarea>
+
+            <input type="hidden" id="edit-id_agenda">
+
+            <button onclick="updateItem()">Salvar Alterações</button>
+            <button onclick="closeModal()">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("agenda-form").addEventListener("submit", function(event) {
+            event.preventDefault();
+            
+            let dt_agenda = document.getElementById("dt_agenda").value;
+            let hora_agenda = document.getElementById("hora_agenda").value;
+            let descricao_agenda = document.getElementById("descricao_agenda").value;
+
+            fetch('/agenda', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    dt_agenda: dt_agenda,
+                    hora_agenda: hora_agenda,
+                    descricao_agenda: descricao_agenda
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                    loadAgenda();
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        });
+
+        function loadAgenda() {
+            fetch('/agenda')
+            .then(response => response.json())
+            .then(data => {
+                let tableBody = '';
+                data.forEach(item => {
+                    tableBody += `
+                    <tr>
+                        <td>${item.dt_agenda}</td>
+                        <td>${item.hora_agenda}</td>
+                        <td>${item.descricao_agenda}</td>
+                        <td>
+                            <button onclick="openModal(${item.id_agenda}, '${item.dt_agenda}', '${item.hora_agenda}', '${item.descricao_agenda}')">Editar</button>
+                            <button onclick="deleteItem(${item.id_agenda})">Delete</button>
+                        </td>
+                    </tr>`;
+                });
+                document.querySelector("#agenda-list tbody").innerHTML = tableBody;
+            });
+        }
+
+        function openModal(id, dt_agenda, hora_agenda, descricao_agenda) {
+            document.getElementById("edit-dt_agenda").value = dt_agenda;
+            document.getElementById("edit-hora_agenda").value = hora_agenda;
+            document.getElementById("edit-descricao_agenda").value = descricao_agenda;
+            document.getElementById("edit-id_agenda").value = id;
+
+            document.getElementById("editModal").style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("editModal").style.display = "none";
+        }
+
+        function updateItem() {
+            const id = document.getElementById("edit-id_agenda").value;
+            const dt_agenda = document.getElementById("edit-dt_agenda").value;
+            const hora_agenda = document.getElementById("edit-hora_agenda").value;
+            const descricao_agenda = document.getElementById("edit-descricao_agenda").value;
+
+            fetch(`/agenda/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    dt_agenda: dt_agenda,
+                    hora_agenda: hora_agenda,
+                    descricao_agenda: descricao_agenda
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                    loadAgenda();
+                    closeModal();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function deleteItem(id) {
+            fetch(`/agenda/${id}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                    loadAgenda();
+                }
+            });
+        }
+
+        // Carrega os itens da agenda ao carregar a página
+        loadAgenda();
+    </script>
+</body>
+</html>
